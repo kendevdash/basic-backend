@@ -2,11 +2,11 @@
   "name": "basic-backend",
   "version": "1.0.0",
   "description": "Basic backend template with Express and MongoDB",
-  "main": "src/index.js",
+  "main": "BACKEND FOLDER/src/index.js",
   "type": "module",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "start": "node BACKEND FOLDER/src/index.js",
+    "dev": "nodemon BACKEND FOLDER/src/index.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

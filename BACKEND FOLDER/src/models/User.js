@@ -52,6 +52,11 @@ const userSchema = new mongoose.Schema(
             type: Date,
             default: null,
         },
+        refreshTokens: {
+            type: [String],
+            default: [],
+        },
+
     },
     {
         timestamps: true, // Adds createdAt and updatedAt

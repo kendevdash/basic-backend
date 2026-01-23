@@ -1,5 +1,5 @@
 import Enrollment from "../models/Enrollment.js";
-
+import { APP_CONSTANTS } from "../config/constants.js";
 /**
  * Middleware to check if student has paid for and has access to a course
  * Expects courseId in req.params
@@ -14,7 +14,7 @@ export const checkCourseAccess = async (req, res, next) => {
             });
         }
 
-        const courseId = req.params.courseId || req.params.id;
+        const { courseId } = req.params;
 
         if (!courseId) {
             return res.status(400).json({
@@ -24,7 +24,7 @@ export const checkCourseAccess = async (req, res, next) => {
         }
 
         // Admins and teachers have access to all courses
-        if (req.user.role === "admin" || req.user.role === "teacher") {
+        if (req.user.role === APP_CONSTANTS.ROLES.ADMIN || req.user.role === APP_CONSTANTS.ROLES.TEACHER) {
             return next();
         }
 
@@ -38,7 +38,7 @@ export const checkCourseAccess = async (req, res, next) => {
             return res.status(403).json({
                 success: false,
                 message: "You are not enrolled in this course",
-                action: "enroll",
+                action: "payment",
             });
         }
 

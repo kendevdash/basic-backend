@@ -31,12 +31,15 @@ export const register = asyncHandler(async (req, res) => {
         name,
         email,
         password,
-        role: role || "student", // Default to student if no role specified
+        role: "student", // Default to student if no role specified
     });
 
     // Generate tokens
     const accessToken = generateAccessToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id);
+    user.refreshTokens.push(refreshToken);
+    await user.save();
+
 
     // Return user data (password excluded by model's toJSON method)
     return successResponse(res, 201, "User registered successfully", {
@@ -90,6 +93,9 @@ export const login = asyncHandler(async (req, res) => {
     // Generate tokens
     const accessToken = generateAccessToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id);
+    user.refreshTokens.push(refreshToken);
+    await user.save();
+
 
     return successResponse(res, 200, "Login successful", {
         user: {
@@ -137,22 +143,23 @@ export const refreshToken = asyncHandler(async (req, res) => {
     }
 
     try {
-        // Verify refresh token
         const { verifyToken } = await import("../utils/tokenUtils.js");
         const decoded = verifyToken(refreshToken);
 
-        // Check token type
         if (decoded.type !== "refresh") {
             return errorResponse(res, 401, "Invalid token type");
         }
 
-        // Find user
         const user = await User.findById(decoded.userId);
         if (!user || !user.isActive) {
             return errorResponse(res, 401, "User not found or inactive");
         }
 
-        // Generate new access token
+        // 🔐 THIS IS WHERE YOUR LINE GOES
+        if (!user.refreshTokens.includes(refreshToken)) {
+            return errorResponse(res, 401, "Refresh token revoked");
+        }
+
         const newAccessToken = generateAccessToken(user._id, user.role);
 
         return successResponse(res, 200, "Token refreshed successfully", {
@@ -169,10 +176,15 @@ export const refreshToken = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const logout = asyncHandler(async (req, res) => {
-    // In a JWT system, logout is typically handled client-side
-    // by removing the token from storage.
-    // This endpoint is for consistency and future enhancements
-    // (e.g., token blacklisting)
+    const { refreshToken } = req.body;
+
+    if (refreshToken) {
+        const user = await User.findById(req.user._id);
+        user.refreshTokens = user.refreshTokens.filter(
+            token => token !== refreshToken
+        );
+        await user.save();
+    }
 
     return successResponse(res, 200, "Logged out successfully");
 });
