@@ -155,7 +155,7 @@ export const refreshToken = asyncHandler(async (req, res) => {
             return errorResponse(res, 401, "User not found or inactive");
         }
 
-        // 🔐 THIS IS WHERE YOUR LINE GOES
+        
         if (!user.refreshTokens.includes(refreshToken)) {
             return errorResponse(res, 401, "Refresh token revoked");
         }

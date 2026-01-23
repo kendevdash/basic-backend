@@ -29,25 +29,13 @@ const paymentSchema = new mongoose.Schema(
         },
         paymentGateway: {
             type: String,
-            enum: ["stripe", "razorpay", "paypal", "manual"],
+            enum: ["mtn_momo", "bank_transfer", "bitcoin", "usdt"],
             required: true,
         },
+
         transactionId: {
             type: String,
             default: null,
-        },
-        paymentIntentId: {
-            type: String,
-            default: null,
-        },
-        paymentMethod: {
-            type: String,
-            default: null,
-        },
-        metadata: {
-            type: Map,
-            of: String,
-            default: {},
         },
         paidAt: {
             type: Date,
@@ -61,6 +49,15 @@ const paymentSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
+        proof: {
+            type: String, // receipt image URL or transaction hash
+            default: null,
+        },
+        metadata: {
+            type: Object, // phone number, wallet address, network, etc.
+            default: {},
+        },
+
     },
     {
         timestamps: true,

@@ -10,124 +10,45 @@ import { APP_CONSTANTS } from "../config/constants.js";
  * @access  Private (Student)
  */
 export const createPayment = asyncHandler(async (req, res) => {
-    const { courseId, paymentGateway = "stripe" } = req.body;
+  const { courseId, paymentGateway, metadata } = req.body;
 
-    if (!courseId) {
-        return errorResponse(res, 400, "Course ID is required");
-    }
+  if (!courseId || !paymentGateway) {
+    return errorResponse(res, 400, "Course ID and payment gateway are required");
+  }
 
-    // Get course
-    const course = await Course.findById(courseId);
-    if (!course) {
-        return errorResponse(res, 404, "Course not found");
-    }
+  const course = await Course.findById(courseId);
+  if (!course) {
+    return errorResponse(res, 404, "Course not found");
+  }
 
-    // Check if already enrolled
-    const existingEnrollment = await Enrollment.findOne({
-        student: req.user._id,
-        course: courseId,
-    });
+  const existingEnrollment = await Enrollment.findOne({
+    student: req.user._id,
+    course: courseId,
+    paymentStatus: APP_CONSTANTS.PAYMENT_STATUS.COMPLETED,
+  });
 
-    if (existingEnrollment?.paymentStatus === APP_CONSTANTS.PAYMENT_STATUS.COMPLETED) {
-        return errorResponse(res, 400, "Already purchased this course");
-    }
+  if (existingEnrollment) {
+    return errorResponse(res, 400, "Course already purchased");
+  }
 
-    // Create payment record
-    const payment = await Payment.create({
-        student: req.user._id,
-        course: courseId,
-        amount: course.price,
-        currency: "USD", // Change based on your needs
-        status: APP_CONSTANTS.PAYMENT_STATUS.PENDING,
-        paymentGateway,
-    });
+  const payment = await Payment.create({
+    student: req.user._id,
+    course: courseId,
+    amount: course.price,
+    currency: "USD",
+    paymentGateway,
+    status:
+      paymentGateway === "bank_transfer"
+        ? APP_CONSTANTS.PAYMENT_STATUS.PENDING
+        : APP_CONSTANTS.PAYMENT_STATUS.UNDER_REVIEW,
+    metadata,
+  });
 
-    // TODO: Integrate with actual payment gateway
-    // For Stripe: const paymentIntent = await stripe.paymentIntents.create({...});
-    // For Razorpay: const order = await razorpay.orders.create({...});
-
-    // Mock payment intent
-    const mockPaymentIntent = {
-        id: `pi_mock_${Date.now()}`,
-        clientSecret: `cs_mock_${Date.now()}`,
-        amount: course.price,
-        currency: "USD",
-    };
-
-    // Update payment with intent ID
-    payment.paymentIntentId = mockPaymentIntent.id;
-    await payment.save();
-
-    return successResponse(res, 200, "Payment intent created", {
-        payment,
-        paymentIntent: mockPaymentIntent,
-        course: {
-            id: course._id,
-            title: course.title,
-            price: course.price,
-        },
-    });
-});
-
-/**
- * @desc    Verify payment and grant access
- * @route   POST /api/payments/verify
- * @access  Public (Webhook from payment gateway)
- */
-export const verifyPayment = asyncHandler(async (req, res) => {
-    const { paymentId, transactionId, status } = req.body;
-
-    // TODO: Verify webhook signature from payment gateway
-    // For Stripe: stripe.webhooks.constructEvent(...)
-    // For Razorpay: razorpay.webhooks.verifySignature(...)
-
-    const payment = await Payment.findById(paymentId);
-
-    if (!payment) {
-        return errorResponse(res, 404, "Payment not found");
-    }
-
-    // Update payment status
-    payment.status = status === "success"
-        ? APP_CONSTANTS.PAYMENT_STATUS.COMPLETED
-        : APP_CONSTANTS.PAYMENT_STATUS.FAILED;
-    payment.transactionId = transactionId;
-    payment.paidAt = new Date();
-
-    await payment.save();
-
-    // If payment successful, grant course access
-    if (payment.status === APP_CONSTANTS.PAYMENT_STATUS.COMPLETED) {
-        // Find or create enrollment
-        let enrollment = await Enrollment.findOne({
-            student: payment.student,
-            course: payment.course,
-        });
-
-        if (!enrollment) {
-            enrollment = await Enrollment.create({
-                student: payment.student,
-                course: payment.course,
-                paymentStatus: APP_CONSTANTS.PAYMENT_STATUS.COMPLETED,
-                paymentId: payment._id,
-                accessGranted: true,
-            });
-        } else {
-            enrollment.paymentStatus = APP_CONSTANTS.PAYMENT_STATUS.COMPLETED;
-            enrollment.paymentId = payment._id;
-            enrollment.accessGranted = true;
-            await enrollment.save();
-        }
-
-        // Update course enrollment count
-        await Course.findByIdAndUpdate(payment.course, {
-            $inc: { enrollmentCount: 1 },
-        });
-    }
-
-    return successResponse(res, 200, "Payment verified successfully", {
-        payment,
-    });
+  return successResponse(res, 201, "Payment initiated", {
+    paymentId: payment._id,
+    paymentGateway,
+    nextStep: "Upload payment proof or wait for admin verification",
+  });
 });
 
 /**
@@ -241,4 +162,55 @@ export const processRefund = asyncHandler(async (req, res) => {
     return successResponse(res, 200, "Refund processed successfully", {
         payment,
     });
+});
+
+
+// approve payments
+
+export const approvePayment = asyncHandler(async (req, res) => {
+  const payment = await Payment.findById(req.params.id);
+
+  if (!payment) {
+    return errorResponse(res, 404, "Payment not found");
+  }
+
+  if (payment.status === APP_CONSTANTS.PAYMENT_STATUS.COMPLETED) {
+    return errorResponse(res, 400, "Payment already approved");
+  }
+
+  payment.status = APP_CONSTANTS.PAYMENT_STATUS.COMPLETED;
+  payment.paidAt = new Date();
+  await payment.save();
+
+  await Enrollment.findOneAndUpdate(
+    { student: payment.student, course: payment.course },
+    {
+      student: payment.student,
+      course: payment.course,
+      paymentStatus: APP_CONSTANTS.PAYMENT_STATUS.COMPLETED,
+      paymentId: payment._id,
+      accessGranted: true,
+    },
+    { upsert: true }
+  );
+
+  return successResponse(res, 200, "Payment approved and access granted");
+});
+
+
+/// reject payments
+
+export const rejectPayment = asyncHandler(async (req, res) => {
+  const { reason } = req.body;
+  const payment = await Payment.findById(req.params.id);
+
+  if (!payment) {
+    return errorResponse(res, 404, "Payment not found");
+  }
+
+  payment.status = APP_CONSTANTS.PAYMENT_STATUS.FAILED;
+  payment.refundReason = reason || "Payment rejected";
+  await payment.save();
+
+  return successResponse(res, 200, "Payment rejected");
 });

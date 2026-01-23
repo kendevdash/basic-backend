@@ -13,19 +13,27 @@ import { APP_CONSTANTS } from "../config/constants.js";
 
 const router = express.Router();
 
+router.post(
+  "/:id/approve",
+  authenticateToken,
+  requireRole([APP_CONSTANTS.ROLES.ADMIN]),
+  approvePayment
+);
+
+router.post(
+  "/:id/reject",
+  authenticateToken,
+  requireRole([APP_CONSTANTS.ROLES.ADMIN]),
+  rejectPayment
+);
+
+
 /**
  * @route   POST /api/payments/create
  * @desc    Create payment intent
  * @access  Private (Student)
  */
 router.post("/create", authenticateToken, createPayment);
-
-/**
- * @route   POST /api/payments/verify
- * @desc    Verify payment (webhook)
- * @access  Public (but should verify webhook signature)
- */
-router.post("/verify", verifyPayment);
 
 /**
  * @route   GET /api/payments/history

@@ -25,10 +25,11 @@ export const APP_CONSTANTS = {
 
     // Payment status
     PAYMENT_STATUS: {
-        PENDING: "pending",
-        COMPLETED: "completed",
-        FAILED: "failed",
-        REFUNDED: "refunded",
+        PENDING: "PENDING",
+        UNDER_REVIEW: "UNDER_REVIEW",
+        COMPLETED: "COMPLETED",
+        FAILED: "FAILED",
+        REFUNDED: "REFUNDED",
     },
 
     // Course status
