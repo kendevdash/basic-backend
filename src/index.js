@@ -3,9 +3,12 @@ import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.routes.js";
+import paymentRoutes from "./routes/payments.routes.js";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./docs/swagger.js";
 import { connectDB } from "./config/db.js";
+import adminRoutes from "./routes/admin.routes.js";
+import courseRoutes from "./routes/courses.routes.js";
 
 dotenv.config();
 
@@ -15,7 +18,7 @@ const PORT = process.env.PORT;
 // Enable CORS for all requests (frontend can access backend)
 app.use(
   cors({
-    origin: process.env.CLIENT_ORIGIN || true,
+    origin: [process.env.CLIENT_ORIGIN, "http://localhost:3000", "http://localhost:8000"].filter(Boolean),
     credentials: true
   })
 );
@@ -24,9 +27,13 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-// Add request logging
+// Add request logging (logs after response is sent)
 app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  const start = Date.now();
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`);
+  });
   next();
 });
 
@@ -37,6 +44,15 @@ app.get("/", (req, res) => {
 
 // Auth routes
 app.use("/api/auth", authRoutes);
+
+// Admin routes
+app.use("/api/admin", adminRoutes);
+
+// Payment routes
+app.use("/api/payments", paymentRoutes);
+
+// Course routes
+app.use("/api/courses", courseRoutes);
 
 // Swagger docs
 app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));

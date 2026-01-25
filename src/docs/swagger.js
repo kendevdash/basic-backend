@@ -69,7 +69,7 @@ const options = {
 			}
 		]
 	},
-	apis: ["./src/routes/auth.routes.js"]
+	apis: ["./src/routes/auth.routes.js", "./src/routes/payments.routes.js", "./src/routes/admin.routes.js"]
 };
 
 const swaggerSpec = swaggerJsdoc(options);
