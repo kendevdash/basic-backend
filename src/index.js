@@ -1,18 +1,28 @@
 ﻿import express from "express";
-import mongoose from "mongoose";
 import dotenv from "dotenv";
-import cors from "cors"; // <-- added CORS support
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import authRoutes from "./routes/auth.routes.js";
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "./docs/swagger.js";
+import { connectDB } from "./config/db.js";
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT;
 
 // Enable CORS for all requests (frontend can access backend)
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.CLIENT_ORIGIN || true,
+    credentials: true
+  })
+);
 
 // Middleware
 app.use(express.json());
+app.use(cookieParser());
 
 // Add request logging
 app.use((req, res, next) => {
@@ -20,17 +30,16 @@ app.use((req, res, next) => {
   next();
 });
 
-// MongoDB connection (optional if using real MongoDB)
-// Comment out if not connecting to real DB
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => console.log("MongoDB connected"))
-  .catch(err => console.error("MongoDB error:", err.message));
-
 // Test route
 app.get("/", (req, res) => {
   res.send("Backend is running!");
 });
+
+// Auth routes
+app.use("/api/auth", authRoutes);
+
+// Swagger docs
+app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Health check endpoint
 app.get("/health", (req, res) => {
@@ -46,20 +55,20 @@ app.post("/api/users/register", (req, res) => {
   const { username, email, password } = req.body;
 
   if (!username || !email || !password) {
-    return res.status(400).json({ 
+    return res.status(400).json({
       message: "All fields are required",
       requiredFields: ["username", "email", "password"]
     });
   }
 
   const mockUserId = `user_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-  
+
   res.status(201).json({
     message: "User registered successfully",
-    user: { 
+    user: {
       id: mockUserId,
-      username, 
-      email 
+      username,
+      email
     },
     timestamp: new Date().toISOString()
   });
@@ -70,14 +79,14 @@ app.post("/api/post/create", (req, res) => {
   const { title, name, description, content, age } = req.body;
 
   if (!title || !name || !description || !content || !age) {
-    return res.status(400).json({ 
+    return res.status(400).json({
       message: "All fields are required",
       requiredFields: ["title", "name", "description", "content", "age"]
     });
   }
 
   const mockPostId = `post_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-  
+
   res.status(201).json({
     id: mockPostId,
     title,
@@ -121,7 +130,7 @@ app.get("/api/posts", (req, res) => {
 app.get("/api/posts/:id", (req, res) => {
   const { id } = req.params;
   console.log(`GET /api/posts/${id} called`);
-  
+
   res.status(200).json({
     id,
     title: `Post: ${id}`,
@@ -152,13 +161,24 @@ app.use((req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
-  console.log(`📝 Available endpoints:`);
-  console.log(`   GET  /`);
-  console.log(`   GET  /health`);
-  console.log(`   POST /api/users/register`);
-  console.log(`   POST /api/post/create`);
-  console.log(`   GET  /api/posts`);
-  console.log(`   GET  /api/posts/:id`);
-});
+async function start() {
+  try {
+    await connectDB();
+
+    app.listen(PORT, () => {
+      console.log(`🚀 Server is running on http://localhost:${PORT}`);
+      console.log(`📝 Available endpoints:`);
+      console.log(`   GET  /`);
+      console.log(`   GET  /health`);
+      console.log(`   POST /api/users/register`);
+      console.log(`   POST /api/post/create`);
+      console.log(`   GET /api/posts`);
+      console.log(`   GET /api/posts/:id`);
+    });
+  } catch (err) {
+    console.error("Failed to start server:", err.message);
+    process.exit(1);
+  }
+}
+
+start();
