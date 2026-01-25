@@ -13,7 +13,7 @@ vi.mock("../src/utils/generateToken.js", () => ({
 	verifyRefreshToken: mockVerifyRefreshToken
 }));
 
-vi.mock("../src/models/User..js", () => {
+vi.mock("../src/models/User.js", () => {
 	class MockUser {
 		constructor(data) {
 			Object.assign(this, data);

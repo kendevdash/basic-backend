@@ -1,5 +1,5 @@
 import { verifyAccessToken } from "../utils/generateToken.js";
-import User from "../models/User..js";
+import User from "../models/User.js";
 
 export const authMiddleware = async (req, res, next) => {
 	try {
@@ -19,6 +19,7 @@ export const authMiddleware = async (req, res, next) => {
 		req.user = {
 			id: user.id,
 			email: user.email,
+			fullName: user.fullName,
 			role: user.role,
 			isPaid: user.isPaid
 		};

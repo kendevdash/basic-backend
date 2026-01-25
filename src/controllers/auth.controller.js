@@ -1,11 +1,11 @@
-import User from "../models/User..js";
+import User from "../models/User.js";
 import {
 	signAccessToken,
 	signRefreshToken,
 	verifyRefreshToken
 } from "../utils/generateToken.js";
 
-const requiredFields = (fields, body) => fields.filter(field => !body[field]);
+const requiredFields = (fields, body) => fields.filter(field => !body || !body[field]);
 
 const setRefreshCookie = (res, token) => {
 	const isProduction = process.env.NODE_ENV === "production";
@@ -46,20 +46,20 @@ export const registerUser = async (req, res) => {
 			return res.status(409).json({ message: "Email already registered" });
 		}
 
-		const user = new User({ fullName, email, password, role, isPaid });
+		const username = `user_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+		const user = new User({ fullName, email, password, role, isPaid, username });
 		await user.save();
-
 		const { accessToken, refreshToken, user: safeUser } = buildAuthResponse(user);
 		setRefreshCookie(res, refreshToken);
 
-		return res.status(201).json({
+				return res.status(201).json({
 			message: "User registered successfully",
 			user: safeUser,
 			accessToken
 		});
 	} catch (err) {
-		console.error("Register error", err);
-		return res.status(500).json({ message: "Server error" });
+		console.error("Register error details:", err);
+		return res.status(500).json({ message: "Server error", error: err.message });
 	}
 };
 
@@ -98,7 +98,6 @@ export const loginUser = async (req, res) => {
 			accessToken
 		});
 	} catch (err) {
-		console.error("Login error", err);
 		return res.status(500).json({ message: "Server error" });
 	}
 };

@@ -7,8 +7,10 @@ import {
 } from "../controllers/auth.controller.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { requireRole } from "../middlewares/role.middleware.js";
+import { requirePaid } from "../middlewares/paid.middleware.js";
 
 const router = Router();
+console.log("Auth routes loading...");
 
 /**
  * @openapi
@@ -114,7 +116,26 @@ router.post("/logout", logoutUser);
  *         description: Unauthorized
  */
 router.get("/me", authMiddleware, (req, res) => {
-    return res.status(200).json({ user: req.user });
+	return res.status(200).json({ user: req.user });
+});
+
+/**
+ * @openapi
+ * /api/auth/paid-only:
+ *   get:
+ *     summary: Paid users only test route
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Paid access granted
+ *       403:
+ *         description: Payment required
+ */
+router.get("/paid-only", authMiddleware, requirePaid, (req, res) => {
+	return res.status(200).json({ message: "Welcome paid user", user: req.user });
 });
 
 /**
@@ -133,7 +154,7 @@ router.get("/me", authMiddleware, (req, res) => {
  *         description: Forbidden
  */
 router.get("/admin-only", authMiddleware, requireRole("Admin"), (req, res) => {
-    return res.status(200).json({ message: "Welcome Admin", user: req.user });
+	return res.status(200).json({ message: "Welcome Admin", user: req.user });
 });
 
 export default router;
